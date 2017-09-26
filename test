@@ -1,0 +1,23 @@
+var
+  v1, v2, v3
+begin
+  v1:=1
+  v2:=5
+  write(v1)
+  while v2 < 10 do
+    var
+      v1
+    begin
+      v1:=10
+      write(v1)
+      write(v2)
+      v2 := v2+1
+      if v2 > 9 then
+        write(666)
+      else
+        write(111)
+    end
+  v3:=3
+  write(v3)
+  write(v1)
+end.
