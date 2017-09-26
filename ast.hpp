@@ -194,10 +194,10 @@ private:
 //   string VarName;
 // };
 
-class VarExprAST : public ExprAST
+class VarExprAST : public InnerExprAST
 {
 public:
-  VarExprAST(vector< pair<string, ExprAST*> > v):V(v)
+  VarExprAST(vector< pair<string, ExprAST*> > v, ExprAST *a):InnerExprAST(a), V(v)
   {}
   Value* codegen() const;
   Value* codegen(map<string, AllocaInst*>*) const;

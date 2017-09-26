@@ -85,13 +85,15 @@ Block: begin_token StatementArray end_token
          $$ = new Block(*$2);
          delete $2;
        }
-     | DeclarationBlock begin_token StatementArray end_token
+     | DeclarationBlock// begin_token StatementArray end_token
        {
-         printf("\n\nCODEGEN DeclarationBlock PRE\n\n");
-         $1->codegen();
-         printf("\n\nCODEGEN DeclarationBlock POST\n\n");
-         $$ = new Block(*$3);
-         delete $3;
+        //  printf("\n\nCODEGEN DeclarationBlock PRE\n\n");
+        //  $1->codegen();
+        //  printf("\n\nCODEGEN DeclarationBlock POST\n\n");
+         vector<ExprAST*> *localVars = new vector<ExprAST*>();
+         localVars->push_back($1);
+         $$ = new Block(*localVars);
+         //delete $1;
        }
     ;
 
@@ -155,9 +157,9 @@ E: E '+' E    { $$ = new AddExprAST($1, $3); }
    }
  ;
 
-DeclarationBlock: var_token VarDeclArray
+DeclarationBlock: var_token VarDeclArray Block
                    {
-                     $$ = new VarExprAST(*$2);
+                     $$ = new VarExprAST(*$2, $3);
                      delete $2;
                    }
                  ;
