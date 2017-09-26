@@ -136,15 +136,6 @@ private:
   ExprAST *_r;
 };
 
-// class SeqExprAST : public InnerExprAST
-// {
-// public:
-//   SeqExprAST(ExprAST *a, ExprAST *b):InnerExprAST(a,b)
-//   {}
-//   Value* codegen() const;
-// };
-
-// klasa izraza dodele
 class AssignExprAST : public InnerExprAST
 {
 public:
@@ -154,16 +145,6 @@ public:
 private:
   string Name;
 };
-
-// class CallExprAST : public InnerExprAST
-// {
-// public:
-//   CallExprAST(string name, vector<ExprAST*> s):InnerExprAST(s), Callee(name)
-//   {}
-//   Value* codegen() const;
-// private:
-//   string Callee;
-// };
 
 class IfExprAST : public InnerExprAST
 {
@@ -183,16 +164,6 @@ private:
   WhileExprAST(const WhileExprAST&);
   WhileExprAST& operator=(const WhileExprAST&);
 };
-
-// class ForExprAST : public InnerExprAST
-// {
-// public:
-//   ForExprAST(string s, ExprAST *a, ExprAST *b, ExprAST *c, ExprAST *d):InnerExprAST(a,b,c,d), VarName(s)
-//   {}
-//   Value* codegen() const;
-// private:
-//   string VarName;
-// };
 
 class VarExprAST : public InnerExprAST
 {

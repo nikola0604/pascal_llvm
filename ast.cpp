@@ -178,17 +178,6 @@ Value* WriteStatement::codegen() const
   return builder.CreateCall(PrintfFja, ArgsV, "printfCall");
 }
 
-// Value* SeqExprAST::codegen() const
-// {
-//   Value *l = _nodes[0]->codegen();
-//   Value *r = _nodes[1]->codegen();
-//
-//   if(l == NULL || r == NULL)
-//     return NULL;
-//
-//   return r;
-// }
-
 Value* AssignExprAST::codegen() const
 {
   Value *tmp = _nodes[0]->codegen();
@@ -205,34 +194,6 @@ Value* AssignExprAST::codegen() const
   builder.CreateStore(tmp, Alloca);
   return tmp;
 }
-
-// Value* CallExprAST::codegen() const
-// {
-//   Function *CalleeF = theModule->getFunction(Callee);
-//
-//   if(!CalleeF)
-//   {
-//     cerr << "Fja " << Callee << " nije definisana" << endl;
-//     return NULL;
-//   }
-//
-//   if(CalleeF->arg_size() != _nodes.size())
-//   {
-//     cout << "Fja " << Callee << " prima " << CalleeF->arg_size() << " argumenata." << endl;
-//     return NULL;
-//   }
-//
-//   vector<Value*> ArgsV;
-//   for(unsigned i=0, e=_nodes.size(); i!=e; ++i)
-//   {
-//     ArgsV.push_back(_nodes[i]->codegen());
-//
-//     if(!ArgsV.back())
-//       return NULL;
-//   }
-//
-//   return builder.CreateCall(CalleeF, ArgsV, "calltmp");
-// }
 
 Value* IfExprAST::codegen() const
 {
@@ -319,65 +280,6 @@ Value* WhileExprAST::codegen() const
   return ConstantFP::get(theContext, APFloat(0.0));
 }
 
-// Value* ForExprAST::codegen() const
-// {
-//   Function *TheFunction = builder.GetInsertBlock()->getParent();
-//   // Alociram prostor za promenljivu, na steku, ta instrukcija se unosi u pocetni blok f-je
-//   AllocaInst *Alloca = CreateEntryBlockAlloca(TheFunction, VarName);
-//   // Pamtim staru promenljivu u spoljnjem dosegu
-//   AllocaInst *OldAlloca = NamedValues[VarName];
-//   NamedValues[VarName] = Alloca;
-//
-//   // Generise se startni uslov i smesta u promenljivu
-//   Value *StartV = _nodes[0]->codegen();
-//   if(StartV == NULL)
-//     return NULL;
-//   builder.CreateStore(StartV, Alloca);
-//
-//   // Pravim blok petlje i bezuslovnu granu iz trenutnog bloka
-//   BasicBlock *LoopBB = BasicBlock::Create(theContext, "loop", TheFunction);
-//   builder.CreateBr(LoopBB);
-//
-//   builder.SetInsertPoint(LoopBB);
-//
-//   //Generisem telo petlje
-//   Value *BodyV = _nodes[3]->codegen();
-//   if(BodyV == NULL)
-//     return NULL;
-//
-//   // Generisem inkrementacioni korak petlje, ako nije naveden onda je 1 podrazumevani
-//   Value *StepV = NULL;
-//   if(_nodes[2] != NULL)
-//     StepV = _nodes[2]->codegen();
-//   else
-//     StepV = ConstantFP::get(theContext, APFloat(1.0));
-//   if(StepV == NULL)
-//     return NULL;
-//
-//   // Dohvatam trenutnu vrednost promenljive sa steka, inkrementiram je i vracam nazad na stek
-//   Value *curVal = builder.CreateLoad(Type::getDoubleTy(theContext), Alloca, VarName.c_str());
-//   Value *nextVar = builder.CreateFAdd(curVal, StepV, "nextvar");
-//   builder.CreateStore(nextVar, Alloca);
-//
-//   Value *CondV = _nodes[1]->codegen();
-//   if (CondV == NULL)
-//     return NULL;
-//   CondV = builder.CreateFCmpONE(CondV, ConstantFP::get(theContext, APFloat(0.0)), "loopcond");
-//
-//   // Kreiram blok na izlazu iz petlje, i uslovnu granu od bloka petlje(LoopBB) do njega(AfterLoopBB)
-//   BasicBlock *AfterLoopBB = BasicBlock::Create(theContext, "afterloop", TheFunction);
-//   builder.CreateCondBr(CondV, LoopBB, AfterLoopBB);
-//
-//   builder.SetInsertPoint(AfterLoopBB);
-//
-//   if(OldAlloca != NULL)
-//     NamedValues[VarName] = OldAlloca;
-//   else
-//     NamedValues.erase(VarName);
-//
-//   return ConstantFP::get(theContext, APFloat(0.0));
-// }
-
 VarExprAST::~VarExprAST()
 {
   for (unsigned i=0;i<V.size(); i++)
@@ -418,8 +320,6 @@ Value* VarExprAST::codegen() const
       NamedValues.erase(V[i].first);
 
   return Res;
-
-  // return ConstantFP::get(theContext, APFloat(0.0));
 }
 
 Function* PrototypeAST::codegen() const
@@ -439,10 +339,8 @@ Function* PrototypeAST::codegen() const
 
 Function* FunctionAST::codegen() const
 {
-  // Dovlaci se f-ja iz modula, pretrazena po imenu
   Function *TheFunction = theModule->getFunction(Proto.getName());
 
-  // ako vec nije deklarisana, generisi kod deklaracije
   if(!TheFunction)
     TheFunction = Proto.codegen();
 
@@ -455,22 +353,16 @@ Function* FunctionAST::codegen() const
     return NULL;
   }
 
-  // Kreira se ulazni blok f-je i umece u f-ju
   BasicBlock *BB = BasicBlock::Create(theContext, "entry", TheFunction);
   builder.SetInsertPoint(BB);
 
-  // Argumenti se unose u mapu
   NamedValues.clear();
   for(auto &Arg : TheFunction->args())
   {
-    // Kao prva instrukcija f-je se umece alokacija steka za promenlijve
     AllocaInst *Alloca = CreateEntryBlockAlloca(TheFunction, Arg.getName());
-    // Pokazivac na lokaciju u memoriji se unosi u mapu i mapira na ime promenlijve
     NamedValues[Arg.getName()] = Alloca;
-    // Vrednost se unosi u memoriju
     builder.CreateStore(&Arg, Alloca);
   }
-
 
   if(Value *RetVal = Body->codegen())
   {

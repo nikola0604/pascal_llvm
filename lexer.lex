@@ -3,11 +3,6 @@
 %option noinput
 %{
 
-  // ['][^']*[']  {
-  //                string tmp(yytext);
-  //                yylval.s = new string(tmp.substr(1, tmp.size() - 2));
-  //                return string_token;
-  // 	           } /* ' */
 #include <iostream>
 #include <cstdlib>
 #include <cctype>
