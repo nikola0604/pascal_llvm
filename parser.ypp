@@ -64,7 +64,7 @@ ExprAST *mm;
 %type <e> E Statement Block Program DeclarationBlock
 %type <v> StatementArray
 %type <v2> VarDeclArray
-%type <p> VarDecls
+%type <p> VarDecl
 
 %nonassoc else_token
 %left ':'
@@ -85,12 +85,14 @@ Block: begin_token StatementArray end_token
          $$ = new Block(*$2);
          delete $2;
        }
-    //  | DeclarationBlock
-    //    {
-    //     //  printf("\n\nCodegen-ujem Block 2!\n");
-    //      $$ = $1;
-    //     //  $1->codegen();
-      //  }
+     | DeclarationBlock begin_token StatementArray end_token
+       {
+         printf("\n\nCODEGEN DeclarationBlock PRE\n\n");
+         $1->codegen();
+         printf("\n\nCODEGEN DeclarationBlock POST\n\n");
+         $$ = new Block(*$3);
+         delete $3;
+       }
     ;
 
 StatementArray: StatementArray Statement
@@ -127,11 +129,6 @@ Statement: //write_token '(' string_token ')'
            {
              $$ = new IfExprAST($2, $4, $6);
            }
-        //  | read_token '(' id_token ')'
-        //    {
-        //      $$ = new Unesi(*$3);
-        //      delete $3;
-        //    }
          | while_token E do_token Statement
            {
              $$ = new WhileExprAST($2, $4);
@@ -158,33 +155,33 @@ E: E '+' E    { $$ = new AddExprAST($1, $3); }
    }
  ;
 
-// DeclarationBlock: var_token VarDeclArray ';' Block
-//                    {
-//                      $$ = new VarExprAST(*$2, $4);
-//                      delete $2;
-//                    }
-//                  ;
-//
-// VarDeclArray: VarDeclArray ',' VarDecl
-//               {
-//                 $$ = $1;
-//                 $$->push_back(*$3);
-//                 delete $3;
-//               }
-//             | VarDecl
-//               {
-//                 $$ = new vector< pair<string, ExprAST*> >();
-//                 $$->push_back(*$1);
-//                 delete $1;
-//               }
-//             ;
-//
-// VarDecl: id_token
-//          {
-//            $$ = new pair<string, ExprAST*>(*$1, NULL);
-//            delete $1;
-//          }
-//        ;
+DeclarationBlock: var_token VarDeclArray
+                   {
+                     $$ = new VarExprAST(*$2);
+                     delete $2;
+                   }
+                 ;
+
+VarDeclArray: VarDeclArray ',' VarDecl
+              {
+                $$ = $1;
+                $$->push_back(*$3);
+                delete $3;
+              }
+            | VarDecl
+              {
+                $$ = new vector< pair<string, ExprAST*> >();
+                $$->push_back(*$1);
+                delete $1;
+              }
+            ;
+
+VarDecl: id_token
+         {
+           $$ = new pair<string, ExprAST*>(*$1, NULL);
+           delete $1;
+         }
+       ;
 %%
 
 extern Module *theModule;
@@ -193,7 +190,7 @@ extern IRBuilder<> builder;
 
 int main(int argc, char **argv)
 {
-  yydebug = 1;
+  // yydebug = 1;
   // InitializeModuleAndPassManager();
   // yyparse();
   // theModule->dump();
@@ -251,7 +248,6 @@ int main(int argc, char **argv)
 
   InitializeModuleAndPassManager();
 
-  yyparse();
 
   FunctionType *FT1 = FunctionType::get(IntegerType::getInt32Ty(theContext), PointerType::get(Type::getInt8Ty(theContext), 0), true);
   PrintfFja = Function::Create(FT1, Function::ExternalLinkage, "printf", theModule);
@@ -264,6 +260,8 @@ int main(int argc, char **argv)
   builder.SetInsertPoint(BB);
 
   Str = builder.CreateGlobalStringPtr("[%g]\n");
+
+  yyparse();
 
   mm->codegen();
 

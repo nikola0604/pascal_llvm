@@ -178,17 +178,16 @@ Value* WriteStatement::codegen() const
   return builder.CreateCall(PrintfFja, ArgsV, "printfCall");
 }
 
-Value* SeqExprAST::codegen() const
-{
-  Value *l = _nodes[0]->codegen();
-  Value *r = _nodes[1]->codegen();
-
-  if(l == NULL || r == NULL)
-    return NULL;
-
-  return r;
-}
-
+// Value* SeqExprAST::codegen() const
+// {
+//   Value *l = _nodes[0]->codegen();
+//   Value *r = _nodes[1]->codegen();
+//
+//   if(l == NULL || r == NULL)
+//     return NULL;
+//
+//   return r;
+// }
 
 Value* AssignExprAST::codegen() const
 {
@@ -408,17 +407,19 @@ Value* VarExprAST::codegen() const
     builder.CreateStore(Tmp, Alloca);
   }
 
-  Value *Res = _nodes[0]->codegen();
-  if(Res == NULL)
-    return NULL;
+//   Value *Res = _nodes[0]->codegen();
+//   if(Res == NULL)
+//     return NULL;
+//
+//   for(unsigned i=0; i<oldAllocas.size(); i++)
+//     if(oldAllocas[i] != NULL)
+//       NamedValues[V[i].first] = oldAllocas[i];
+//     else
+//       NamedValues.erase(V[i].first);
+//
+//   return Res;
 
-  for(unsigned i=0; i<oldAllocas.size(); i++)
-    if(oldAllocas[i] != NULL)
-      NamedValues[V[i].first] = oldAllocas[i];
-    else
-      NamedValues.erase(V[i].first);
-
-  return Res;
+  return ConstantFP::get(theContext, APFloat(0.0));
 }
 
 Function* PrototypeAST::codegen() const

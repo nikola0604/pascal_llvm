@@ -136,13 +136,13 @@ private:
   ExprAST *_r;
 };
 
-class SeqExprAST : public InnerExprAST
-{
-public:
-  SeqExprAST(ExprAST *a, ExprAST *b):InnerExprAST(a,b)
-  {}
-  Value* codegen() const;
-};
+// class SeqExprAST : public InnerExprAST
+// {
+// public:
+//   SeqExprAST(ExprAST *a, ExprAST *b):InnerExprAST(a,b)
+//   {}
+//   Value* codegen() const;
+// };
 
 // klasa izraza dodele
 class AssignExprAST : public InnerExprAST
@@ -194,12 +194,13 @@ private:
 //   string VarName;
 // };
 
-class VarExprAST : public InnerExprAST
+class VarExprAST : public ExprAST
 {
 public:
-  VarExprAST(vector< pair<string, ExprAST*> > v, ExprAST* a):InnerExprAST(a), V(v)
+  VarExprAST(vector< pair<string, ExprAST*> > v):V(v)
   {}
   Value* codegen() const;
+  Value* codegen(map<string, AllocaInst*>*) const;
   ~VarExprAST();
 private:
   VarExprAST& operator=(const VarExprAST&);
