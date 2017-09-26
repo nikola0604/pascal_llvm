@@ -1,0 +1,326 @@
+%{
+#include <iostream>
+#include <cstdio>
+#include <cstdlib>
+#include <string>
+#include <map>
+#include "ast.hpp"
+#include <vector>
+
+#define YYDEBUG 1
+
+using namespace std;
+
+void yyerror(string s)
+{
+   cerr << s << endl;
+   exit(EXIT_FAILURE);
+}
+
+extern int yylex();
+
+int counter=0;
+Function *mainFja;
+Function *PrintfFja;
+Value *Str;
+ExprAST *mm;
+
+// Program: Block '.'
+//          {
+//            PrototypeAST p(to_string(counter++), vector<string>());
+//            FunctionAST *f = new FunctionAST(p, $1);
+//            printf("Codegen-ujem block!\n");
+//            f->codegen();
+//            delete f;
+//          }
+//        | DeclarationBlock '.'
+//          {
+//            PrototypeAST p(to_string(counter++), vector<string>());
+//            FunctionAST *f = new FunctionAST(p, $1);
+//            printf("Codegen-ujem deklaraciju!\n");
+//            f->codegen();
+//            delete f;
+//          }
+//        ;
+%}
+
+%union
+{
+  string *s;
+  double x;
+  ExprAST *e;
+  vector<ExprAST*> *v;
+  vector<pair<string, ExprAST*> > *v2;
+  pair<string, ExprAST*> *p;
+}
+
+%token begin_token end_token write_token mod_token
+%token if_token then_token else_token read_token
+%token while_token do_token var_token
+
+%token <s> string_token id_token
+%token <x> num_token
+
+%type <e> E Statement Block Program DeclarationBlock
+%type <v> StatementArray
+%type <v2> VarDeclArray
+%type <p> VarDecls
+
+%nonassoc else_token
+%left ':'
+%left '<' '>'
+%left '+' '-'
+%left '*' '/' mod_token
+
+%%
+
+Program: Block '.'
+         {
+           mm = $1;
+         }
+       ;
+
+Block: begin_token StatementArray end_token
+       {
+         $$ = new Block(*$2);
+         delete $2;
+       }
+    //  | DeclarationBlock
+    //    {
+    //     //  printf("\n\nCodegen-ujem Block 2!\n");
+    //      $$ = $1;
+    //     //  $1->codegen();
+      //  }
+    ;
+
+StatementArray: StatementArray Statement
+                {
+                  $$ = $1;
+                  $$->push_back($2);
+                }
+              | Statement
+                {
+                  $$ = new vector<ExprAST*>();
+                  $$->push_back($1);
+              ;
+
+            }
+Statement: //write_token '(' string_token ')'
+//            {
+//              $$ = new IspisStringa(*$3);
+//              delete $3;
+//            }
+          write_token '(' E ')'
+           {
+             $$ = new WriteStatement($3);
+           }
+         | id_token ':' '=' E
+           {
+             $$ = new AssignExprAST(*$1, $4);
+             delete $1;
+           }
+        //  | if_token E then_token Statement
+        //    {
+        //      $$ = new IfExprAST($2, $4, NULL);
+        //    }
+         | if_token E then_token Statement else_token Statement
+           {
+             $$ = new IfExprAST($2, $4, $6);
+           }
+        //  | read_token '(' id_token ')'
+        //    {
+        //      $$ = new Unesi(*$3);
+        //      delete $3;
+        //    }
+         | while_token E do_token Statement
+           {
+             $$ = new WhileExprAST($2, $4);
+           }
+         | Block
+           {
+             $$ = $1;
+           }
+         | E
+         ;
+
+E: E '+' E    { $$ = new AddExprAST($1, $3); }
+ | E '-' E    { $$ = new SubExprAST($1, $3); }
+ | E '*' E    { $$ = new MulExprAST($1, $3); }
+ | E '/' E    { $$ = new DivExprAST($1, $3); }
+ | E '<' E    { $$ = new LTExprAST($1, $3); }
+ | E '>' E    { $$ = new GTExprAST($1, $3); }
+ | '(' E ')'  { $$ = $2;}
+ | num_token  { $$ = new NumberExprAST($1); }
+ | id_token
+   {
+     $$ = new VariableExprAST(*$1);
+     delete $1;
+   }
+ ;
+
+// DeclarationBlock: var_token VarDeclArray ';' Block
+//                    {
+//                      $$ = new VarExprAST(*$2, $4);
+//                      delete $2;
+//                    }
+//                  ;
+//
+// VarDeclArray: VarDeclArray ',' VarDecl
+//               {
+//                 $$ = $1;
+//                 $$->push_back(*$3);
+//                 delete $3;
+//               }
+//             | VarDecl
+//               {
+//                 $$ = new vector< pair<string, ExprAST*> >();
+//                 $$->push_back(*$1);
+//                 delete $1;
+//               }
+//             ;
+//
+// VarDecl: id_token
+//          {
+//            $$ = new pair<string, ExprAST*>(*$1, NULL);
+//            delete $1;
+//          }
+//        ;
+%%
+
+extern Module *theModule;
+extern LLVMContext theContext;
+extern IRBuilder<> builder;
+
+int main(int argc, char **argv)
+{
+  yydebug = 1;
+  // InitializeModuleAndPassManager();
+  // yyparse();
+  // theModule->dump();
+  //
+  // string TargetTriple = "x86_64-pc-linux-gnu";
+  // LLVMInitializeAllTargetInfos();
+  // LLVMInitializeAllTargets();
+  // LLVMInitializeAllTargetMCs();
+  // LLVMInitializeAllAsmParsers();
+  // LLVMInitializeAllAsmPrinters();
+  //
+  // string Error;
+  // auto Target = TargetRegistry::lookupTarget(TargetTriple, Error);
+  //
+  // if (!Target)
+  // {
+  //   cerr << Error;
+  //   return 1;
+  // }
+  //
+  // auto CPU = "generic";
+  // auto Features = "";
+  //
+  // TargetOptions opt;
+  // auto RM = Reloc::Model();
+  // auto TargetMachine = Target->createTargetMachine(TargetTriple, CPU, Features, opt, RM);
+  //
+  // theModule->setDataLayout(TargetMachine->createDataLayout());
+  // theModule->setTargetTriple(TargetTriple);
+  //
+  // string Filename = "output.o";
+  // error_code EC;
+  // raw_fd_ostream dest(Filename, EC, sys::fs::F_None);
+  //
+  // if (EC)
+  // {
+  //   cerr << "Could not open file: " << EC.message();
+  //   return 1;
+  // }
+  //
+  // legacy::PassManager pass;
+  // auto FileType = TargetMachine::CGFT_ObjectFile;
+  //
+  // if (TargetMachine->addPassesToEmitFile(pass, dest, FileType))
+  // {
+  //   cerr << "TargetMachine can't emit a file of this type";
+  //   return 1;
+  // }
+  //
+  // pass.run(*theModule);
+  // dest.flush();
+  //
+  // delete theModule;
+  // return 0;
+
+  InitializeModuleAndPassManager();
+
+  yyparse();
+
+  FunctionType *FT1 = FunctionType::get(IntegerType::getInt32Ty(theContext), PointerType::get(Type::getInt8Ty(theContext), 0), true);
+  PrintfFja = Function::Create(FT1, Function::ExternalLinkage, "printf", theModule);
+
+  /* fja main */
+  vector<Type*> v(0);
+  FunctionType* FT2 = FunctionType::get(Type::getInt32Ty(theContext), v, false);
+  mainFja = Function::Create(FT2, Function::ExternalLinkage, "main", theModule);
+  BasicBlock *BB = BasicBlock::Create(theContext, "entry", mainFja);
+  builder.SetInsertPoint(BB);
+
+  Str = builder.CreateGlobalStringPtr("[%g]\n");
+
+  mm->codegen();
+
+  /* zavrsetak main fje */
+  builder.CreateRet(ConstantInt::get(theContext, APInt(32, 0)));
+  verifyFunction(*mainFja);
+
+  /* ispis llvm koda */
+  theModule->dump();
+  /* kompilacija */
+  string TargetTriple = "x86_64-pc-linux-gnu";
+  LLVMInitializeAllTargetInfos();
+  LLVMInitializeAllTargets();
+  LLVMInitializeAllTargetMCs();
+  LLVMInitializeAllAsmParsers();
+  LLVMInitializeAllAsmPrinters();
+
+  string Error;
+  auto Target = TargetRegistry::lookupTarget(TargetTriple, Error);
+  if (!Target)
+  {
+    cerr << Error;
+    return 1;
+  }
+
+  auto CPU = "generic";
+  auto Features = "";
+
+  TargetOptions opt;
+  auto RM = Reloc::Model();
+  auto TargetMachine = Target->createTargetMachine(TargetTriple, CPU, Features, opt, RM);
+
+  theModule->setDataLayout(TargetMachine->createDataLayout());
+  theModule->setTargetTriple(TargetTriple);
+  string Filename = "output.o";
+
+  error_code EC;
+  raw_fd_ostream dest(Filename, EC, sys::fs::F_None);
+  if (EC)
+  {
+    cerr << "Could not open file: " << EC.message();
+    return 1;
+  }
+
+  legacy::PassManager pass;
+
+  auto FileType = TargetMachine::CGFT_ObjectFile;
+  if (TargetMachine->addPassesToEmitFile(pass, dest, FileType))
+  {
+    cerr << "TargetMachine can't emit a file of this type";
+    return 1;
+  }
+
+  pass.run(*theModule);
+  dest.flush();
+
+  /* brisanje modula */
+  delete theModule;
+  return EXIT_SUCCESS;
+}
