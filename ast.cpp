@@ -7,7 +7,6 @@ IRBuilder<> builder(theContext);
 Module *theModule;
 FunctionPassManager *TheFPM;
 
-int blockCount=0;
 ExprAST::~ExprAST()
 {}
 
@@ -64,7 +63,7 @@ Value* VariableExprAST::codegen() const
   if(tmp == NULL)
   {
     cerr << "Promenljiva " + Name + " nije definisana" << endl;
-    return NULL;
+    exit(EXIT_FAILURE);
   }
 
   return builder.CreateLoad(Type::getDoubleTy(theContext), tmp, Name.c_str());
@@ -81,9 +80,7 @@ Block::~Block()
 Value* Block::codegen() const
 {
   for (unsigned i = 0; i < _v.size(); i++)
-  {
     _v[i]->codegen();
-  }
 
   return ConstantInt::get(theContext, APInt(32, 0));
 }
@@ -188,7 +185,7 @@ Value* AssignExprAST::codegen() const
   if(Alloca == NULL)
   {
     cerr << "Promenljiva " + Name + " nije definisana" << endl;
-    return NULL;
+    exit(EXIT_FAILURE);
   }
 
   builder.CreateStore(tmp, Alloca);
@@ -244,6 +241,7 @@ Value* IfThenExprAST::codegen() const
   if (!condV)
     return nullptr;
 
+  condV = builder.CreateFCmpONE(condV, ConstantFP::get(theContext, APFloat(0.0)), "ifcond");
   Function* theFunction = builder.GetInsertBlock()->getParent();
 
   BasicBlock *thenBB = BasicBlock::Create(theContext, "then", theFunction);
@@ -286,11 +284,7 @@ Value* WhileExprAST::codegen() const
   builder.SetInsertPoint(loopBB1);
 
   if (!_nodes[1]->codegen())
-  {
-    printf("_nodes[1]->codegen DONE\n\n");
-
     return nullptr;
-}
 
   builder.CreateBr(loopBB);
 
@@ -348,13 +342,13 @@ Value* CallExprAST::codegen() const
   if(!CalleeF)
   {
     cerr << "Fja " << Callee << " nije definisana" << endl;
-    return NULL;
+    exit(EXIT_FAILURE);
   }
 
   if(CalleeF->arg_size() != _nodes.size())
   {
     cout << "Fja " << Callee << " prima " << CalleeF->arg_size() << " argumenata." << endl;
-    return NULL;
+    exit(EXIT_FAILURE);
   }
 
   vector<Value*> ArgsV;
@@ -395,10 +389,7 @@ Function* FunctionAST::codegen() const
     return NULL;
 
   if(!TheFunction->empty())
-  {
-    cerr << "Nije dozvoljeno predefinisanje f-je " << Proto.getName() << endl;
     return NULL;
-  }
 
   BasicBlock *BB = BasicBlock::Create(theContext, "entry", TheFunction);
   builder.SetInsertPoint(BB);

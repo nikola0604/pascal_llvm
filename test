@@ -1,3 +1,9 @@
+function tmp1(v1)
+  begin
+    if v1 < 9 then
+      write(999)
+    end_if
+  end
 var
   v1, v2, v3
 begin
@@ -19,9 +25,7 @@ begin
       end_if
     end
   v3:=3
+  tmp1(v3)
   write(v3)
   write(v1)
-  if 10 < 11 then
-    write(8)
-  end_if
 end.

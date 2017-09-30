@@ -1,0 +1,25 @@
+function tmp1(v1,v2)
+  begin
+    write(v1)
+    write(v2)
+  end
+function tmp2(v1)
+  begin
+    write(v1)
+  end
+function tmp3(v2)
+  begin
+    write(v2)
+  end
+var
+  v1, v2, v3
+begin
+  v1:=1
+  write(v1)
+  tmp1(10,15)
+  tmp2(20)
+  tmp3(30)
+  v1:=v2+v3
+  tmp1(v2,v3)
+  tmp2(v1)
+end.

@@ -61,18 +61,45 @@ ExprAST *mm;
 
 %%
 
+// Posebne varijante u slucaju da ne postoje definicije f-ja pre "main" i ako ih ima
+// Cvorovi se rekurzivno codegen-uju u main-u. Razlog tome je pojavljivanje ugnjezdenih blokova i ovo resenje mi se cinilo kao najbolje
+// Postoje pametnija resenja kad je gramatika u pitanju ali sam hteo da zadrzim onu gramatiku koju sam branio usmeno.
+// Tako da mislim da funkcionalnost vec postojece gramatike nije mogla da se prosiri mnogo efikasnije.
 Program: Block '.'
          {
            mm = $1;
          }
+       | FunctionDefArray Block '.'
+         {
+           mm = $2;
+         }
        ;
 
+// Uzevsi u obzir da se definicije funkcija codegen-uju pri redukciji ovo pravilo sam ostavio ovakvo samo zbog intuitivnosti i kozmetike
+FunctionDefArray: FunctionDefArray FunctionDef
+                  {}
+                | FunctionDef
+                  {}
+                ;
+
+// Codegen funkcija
+FunctionDef: function_token Proto begin_token StatementArray end_token
+             {
+               FunctionAST *f = new FunctionAST(*$2, new Block(*$4));
+               delete $2;
+               delete $4;
+
+               f->codegen();
+             }
+          ;
+
+// Dve varijante blokova, ona kojoj ne prethodni deklarativna sekcija i ona kojoj prethodi
 Block: begin_token StatementArray end_token
        {
          $$ = new Block(*$2);
          delete $2;
        }
-     | DeclarationBlock
+    |  DeclarationBlock
        {
          vector<ExprAST*> *localVars = new vector<ExprAST*>();
          localVars->push_back($1);
@@ -80,6 +107,37 @@ Block: begin_token StatementArray end_token
        }
     ;
 
+// Varijanta bloka kojoj prethode deklaracije promenljivih
+DeclarationBlock: var_token VarDeclArray Block
+                   {
+                     $$ = new VarExprAST(*$2, $3);
+                     delete $2;
+                   }
+                ;
+
+VarDeclArray: VarDeclArray ',' VarDecl
+              {
+                $$ = $1;
+                $$->push_back(*$3);
+                delete $3;
+              }
+            | VarDecl
+              {
+                $$ = new vector< pair<string, ExprAST*> >();
+                $$->push_back(*$1);
+                delete $1;
+              }
+            ;
+
+VarDecl: id_token
+         {
+           $$ = new pair<string, ExprAST*>(*$1, NULL);
+               delete $1;
+             }
+           ;
+
+//Logika ostatka gramatike je preuzeta sa vezbi
+//Dangling else sam resio dodavanjem end_if tokena kojim se zatvara naredba grananja
 StatementArray: StatementArray Statement
                 {
                   $$ = $1;
@@ -92,12 +150,7 @@ StatementArray: StatementArray Statement
                 }
               ;
 
-Statement: function_token Proto Block
-           {
-             $$ = new FunctionAST(*$2, $3);
-             delete $2;
-           }
-         | write_token '(' E ')'
+Statement: write_token '(' E ')'
            {
              $$ = new WriteStatement($3);
            }
@@ -156,14 +209,17 @@ Proto: id_token '(' Args ')'
        }
      ;
 
- Args: Args id_token
+ Args: Args ',' id_token
        {
          $$ = $1;
-         $$->push_back(*$2);
-         delete $2;
+         $$->push_back(*$3);
+         delete $3;
        }
-     | {
+     | id_token
+       {
          $$ = new vector<string>();
+         $$->push_back(*$1);
+         delete $1;
        }
      ;
 
@@ -182,59 +238,41 @@ E: E '+' E    { $$ = new AddExprAST($1, $3); }
    }
  ;
 
-DeclarationBlock: var_token VarDeclArray Block
-                   {
-                     $$ = new VarExprAST(*$2, $3);
-                     delete $2;
-                   }
-                 ;
-
-VarDeclArray: VarDeclArray ',' VarDecl
-              {
-                $$ = $1;
-                $$->push_back(*$3);
-                delete $3;
-              }
-            | VarDecl
-              {
-                $$ = new vector< pair<string, ExprAST*> >();
-                $$->push_back(*$1);
-                delete $1;
-              }
-            ;
-
-VarDecl: id_token
-         {
-           $$ = new pair<string, ExprAST*>(*$1, NULL);
-           delete $1;
-         }
-       ;
 %%
 
 extern Module *theModule;
-extern LLVMContext theContext;
 extern IRBuilder<> builder;
+extern LLVMContext theContext;
 
 int main(int argc, char **argv)
 {
-  // yydebug = 1;
+  yydebug = 1;
 
   InitializeModuleAndPassManager();
-  yyparse();
 
-  FunctionType *FT1 = FunctionType::get(IntegerType::getInt32Ty(theContext), PointerType::get(Type::getInt8Ty(theContext), 0), true);
-  PrintfFja = Function::Create(FT1, Function::ExternalLinkage, "printf", theModule);
-
+  // Main f-ja
   vector<Type*> v(0);
   FunctionType* FT2 = FunctionType::get(Type::getInt32Ty(theContext), v, false);
   mainFja = Function::Create(FT2, Function::ExternalLinkage, "main", theModule);
   BasicBlock *BB = BasicBlock::Create(theContext, "mainEntry", mainFja);
-  builder.SetInsertPoint(BB);
 
+  // Print f-ja
+  FunctionType *FT1 = FunctionType::get(IntegerType::getInt32Ty(theContext), PointerType::get(Type::getInt8Ty(theContext), 0), true);
+  PrintfFja = Function::Create(FT1, Function::ExternalLinkage, "printf", theModule);
+
+  builder.SetInsertPoint(BB);
   Str = builder.CreateGlobalStringPtr("[%g]\n");
 
+  yyparse();
+
+  // Pri definiciji funkcija insert point ostane u bloku poslednje definisane f-je (jer se f-je codegen-uju isprepletano sa parsiranjem)
+  // Tako da ga resetujem na kraj Main f-je
+  builder.SetInsertPoint(BB);
+
+  // codegen
   mm->codegen();
 
+  // Zatvaramo main
   builder.CreateRet(ConstantInt::get(theContext, APInt(32, 0)));
   verifyFunction(*mainFja);
 

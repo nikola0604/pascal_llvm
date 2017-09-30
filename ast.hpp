@@ -223,14 +223,6 @@ private:
   ExprAST *Body;
 };
 
-class SeqExprAST : public InnerExprAST
-{
-public:
-  SeqExprAST(ExprAST *a, ExprAST *b):InnerExprAST(a,b)
-  {}
-  Value* codegen() const;
-};
-
 void InitializeModuleAndPassManager(void);
 AllocaInst* CreateEntryBlockAlloca(Function *TheFunction, const string &VarName);
 
