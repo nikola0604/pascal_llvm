@@ -197,53 +197,72 @@ Value* AssignExprAST::codegen() const
 
 Value* IfExprAST::codegen() const
 {
-  printf("CondV = codegen()\n\n");
+  PHINode* PN = NULL;
+
   Value* CondV = _nodes[0]->codegen();
   if(CondV == NULL)
     return NULL;
 
-  printf("CreateFCmpONE\n\n");
   CondV = builder.CreateFCmpONE(CondV, ConstantFP::get(theContext, APFloat(0.0)), "ifcond");
   Function *TheFunction = builder.GetInsertBlock()->getParent();
 
-  printf("Pravim blokove i umece ThenBB u fju\n\n");
   BasicBlock *ThenBB = BasicBlock::Create(theContext, "then", TheFunction);
   BasicBlock *ElseBB = BasicBlock::Create(theContext, "else");
   BasicBlock *MergeBB = BasicBlock::Create(theContext, "ifcont");
 
-  printf("CreateCondBr\n\n");
   builder.CreateCondBr(CondV, ThenBB, ElseBB);
   builder.SetInsertPoint(ThenBB);
-  printf("ThenV = codegen()\n\n");
   Value* ThenV = _nodes[1]->codegen();
 
   if(ThenV == NULL)
     return NULL;
-  printf("CreateBr(MergeBB) ThenBB\n\n");
   builder.CreateBr(MergeBB);
   ThenBB = builder.GetInsertBlock();
 
-  printf("Umecem ElseBB u fju\n\n");
   TheFunction->getBasicBlockList().push_back(ElseBB);
   builder.SetInsertPoint(ElseBB);
-  printf("ElseBB = codegen()");
   Value* ElseV = _nodes[2]->codegen();
   if (ElseV == NULL)
     return NULL;
 
-  printf("CreateBr(MergeBB) ElseBB\n\n");
   builder.CreateBr(MergeBB);
   ElseBB = builder.GetInsertBlock();
 
   TheFunction->getBasicBlockList().push_back(MergeBB);
   builder.SetInsertPoint(MergeBB);
 
-  printf("PHINode\n\n");
-  PHINode* PN = builder.CreatePHI(Type::getDoubleTy(theContext), 2, "iftmp");
+  PN = builder.CreatePHI(Type::getDoubleTy(theContext), 2, "iftmp");
   PN->addIncoming(ThenV, ThenBB);
   PN->addIncoming(ElseV, ElseBB);
 
   return PN;
+}
+
+Value* IfThenExprAST::codegen() const
+{
+  Value* condV = _nodes[0]->codegen();
+  if (!condV)
+    return nullptr;
+
+  Function* theFunction = builder.GetInsertBlock()->getParent();
+
+  BasicBlock *thenBB = BasicBlock::Create(theContext, "then", theFunction);
+  BasicBlock *mergeBB = BasicBlock::Create(theContext, "ifThencont");
+
+  builder.CreateCondBr(condV, thenBB, mergeBB);
+
+  builder.SetInsertPoint(thenBB);
+  Value* thenV = _nodes[1]->codegen();
+  if (!thenV)
+    return NULL;
+
+  builder.CreateBr(mergeBB);
+  thenBB = builder.GetInsertBlock();
+
+  theFunction->getBasicBlockList().push_back(mergeBB);
+  builder.SetInsertPoint(mergeBB);
+
+  return ConstantInt::get(theContext, APInt(32, 0));
 }
 
 Value* WhileExprAST::codegen() const
@@ -322,6 +341,34 @@ Value* VarExprAST::codegen() const
   return Res;
 }
 
+Value* CallExprAST::codegen() const
+{
+  Function *CalleeF = theModule->getFunction(Callee);
+
+  if(!CalleeF)
+  {
+    cerr << "Fja " << Callee << " nije definisana" << endl;
+    return NULL;
+  }
+
+  if(CalleeF->arg_size() != _nodes.size())
+  {
+    cout << "Fja " << Callee << " prima " << CalleeF->arg_size() << " argumenata." << endl;
+    return NULL;
+  }
+
+  vector<Value*> ArgsV;
+  for(unsigned i=0, e=_nodes.size(); i!=e; ++i)
+  {
+    ArgsV.push_back(_nodes[i]->codegen());
+
+    if(!ArgsV.back())
+      return NULL;
+  }
+
+  return builder.CreateCall(CalleeF, ArgsV, "calltmp");
+}
+
 Function* PrototypeAST::codegen() const
 {
   vector<Type*> Doubles(Args.size(), Type::getDoubleTy(theContext));
@@ -367,9 +414,7 @@ Function* FunctionAST::codegen() const
   if(Value *RetVal = Body->codegen())
   {
     builder.CreateRet(RetVal);
-
     verifyFunction(*TheFunction);
-
     TheFPM->run(*TheFunction);
 
     return TheFunction;

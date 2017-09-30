@@ -16,8 +16,12 @@ begin
         write(666)
       else
         write(111)
+      end_if
     end
   v3:=3
   write(v3)
   write(v1)
+  if 10 < 11 then
+    write(8)
+  end_if
 end.

@@ -154,6 +154,14 @@ public:
   Value* codegen() const;
 };
 
+class IfThenExprAST : public InnerExprAST
+{
+public:
+  IfThenExprAST(ExprAST *a, ExprAST *b):InnerExprAST(a, b)
+  {}
+  Value* codegen() const;
+};
+
 class WhileExprAST : public InnerExprAST
 {
 public:
@@ -179,7 +187,17 @@ private:
   vector< pair<string, ExprAST*> > V;
 };
 
-class PrototypeAST
+class CallExprAST : public InnerExprAST
+{
+public:
+  CallExprAST(string name, vector<ExprAST*> s):InnerExprAST(s), Callee(name)
+  {}
+  Value* codegen() const;
+private:
+  string Callee;
+};
+
+class PrototypeAST : public ExprAST
 {
 public:
   PrototypeAST(string n, vector<string> a):Name(n), Args(a)
@@ -191,7 +209,7 @@ private:
   vector<string> Args;
 };
 
-class FunctionAST
+class FunctionAST : public ExprAST
 {
 public:
   FunctionAST(PrototypeAST p, ExprAST *b):Proto(p), Body(b)
@@ -203,6 +221,14 @@ private:
   FunctionAST& operator=(const FunctionAST &f);
   PrototypeAST Proto;
   ExprAST *Body;
+};
+
+class SeqExprAST : public InnerExprAST
+{
+public:
+  SeqExprAST(ExprAST *a, ExprAST *b):InnerExprAST(a,b)
+  {}
+  Value* codegen() const;
 };
 
 void InitializeModuleAndPassManager(void);

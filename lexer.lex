@@ -36,7 +36,8 @@ else             return else_token;
 while            return while_token;
 do               return do_token;
 var              return var_token;
-
+function         return function_token;
+end_if           return end_if_token;
 [0-9]+  {
           yylval.x = atof(yytext);
           return num_token;
